@@ -19,8 +19,9 @@ namespace ClientServer
 
         public Server()
         {
-            udp = new UdpClient(portUdp);
+            udp = new UdpClient();
             tcpServer = new TcpListener(IPAddress.Any, portTcp);
+            tcpServer.Start();
             udp.EnableBroadcast = true;
         }
 
@@ -28,26 +29,35 @@ namespace ClientServer
         {
             Thread threadBroadcast = new Thread(new ThreadStart(StartBroadcast)); // closing thread?
             Thread threadTcp = new Thread(new ThreadStart(StartTcpAccept));
+            threadBroadcast.Start();
+            threadTcp.Start();
         }
 
-        private void StartBroadcast()
+        public void StartBroadcast()
         {
             while (client == null)
             {
                 byte[] bytes = Encoding.ASCII.GetBytes("connectMessage"); // system 
                 udp.Send(bytes, bytes.Length, new IPEndPoint(IPAddress.Broadcast, portUdp));
+                Console.WriteLine("broadcast");
                 Thread.Sleep(5000);
             }
         }
         private void StartTcpAccept()
         {
             client = tcpServer.AcceptTcpClient();
+            Console.WriteLine("client accepted " + client.Connected);
             var stream = client.GetStream();
             while (true)
             {
-                if (stream.CanRead)
+                if (stream.DataAvailable) // был stream.CanRead
                 {
-                    
+                    byte[] bytes = new byte[128];
+                    stream.Read(bytes, 0, bytes.Length);
+                    string answ = Encoding.ASCII.GetString(bytes);
+                    Console.WriteLine(answ);
+                    if (answ == "stop")
+                        return;
                 }
             }
         }
